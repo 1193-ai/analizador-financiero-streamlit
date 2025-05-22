@@ -258,3 +258,37 @@ if uploaded_file:
                 st.info("No se encontraron datos para gráfico de flujo de efectivo.")
 
 st.markdown("</div>", unsafe_allow_html=True)
+import openai
+
+# Puedes guardar tu API Key de forma segura como un secreto en Streamlit Cloud o definirla localmente
+openai.api_key = st.secrets["OPENAI_API_KEY"]  # o reemplaza con tu clave: "sk-..."
+
+st.markdown("## 🤖 Asistente IA financiero")
+user_question = st.text_input("Haz una pregunta sobre tus estados financieros:")
+
+if user_question and uploaded_file:
+    texto_contexto = ""
+
+    for hoja in xls.sheet_names:
+        df = xls.parse(hoja)
+        df = df.fillna("")
+        texto_contexto += f"\n\nHoja: {hoja}\n"
+        texto_contexto += df.to_string(index=False)
+
+    prompt = f"""
+    Soy un experto financiero. A continuación están los estados financieros de una empresa. Responde a la pregunta del usuario usando únicamente esta información.
+
+    Estados financieros:
+    {texto_contexto}
+
+    Pregunta: {user_question}
+    Respuesta:
+    """
+
+    with st.spinner("Analizando con IA..."):
+        respuesta = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
+        )
+        st.success(respuesta["choices"][0]["message"]["content"])
