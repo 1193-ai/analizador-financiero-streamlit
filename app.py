@@ -195,4 +195,3 @@ if uploaded_file:
         analizar_estado(df, tipo)
 
 st.markdown("</div>", unsafe_allow_html=True)
-
