@@ -26,172 +26,180 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- Función para estandarizar columnas con seguridad ---
 def estandarizar_columnas(columnas):
     equivalencias = {
         "ingresos": "Ingresos",
-        "ventas": "Ingresos",
         "gastos": "Gastos",
-        "costos": "Gastos",
         "activo total": "Activo Total",
-        "total activo": "Activo Total",
         "pasivo total": "Pasivo Total",
-        "total pasivo": "Pasivo Total",
         "patrimonio": "Patrimonio",
-        "capital": "Patrimonio",
-        "flujo de efectivo": "Flujo de Efectivo",
-        "estado de resultados": "Estado de Resultados",
-        "estado de situacion financiera": "Estado de Situación Financiera"
+        "utilidad neta": "Utilidad Neta",
+        "flujo neto de efectivo": "Flujo Neto de Efectivo",
+        # agrega más equivalencias si quieres
     }
-    columnas_limpias = []
-    for col in columnas:
-        if col is None:
-            columnas_limpias.append(col)
-            continue
-        try:
-            c = str(col).lower().strip()
-        except Exception:
-            c = str(col)
-        columnas_limpias.append(equivalencias.get(c, col))
-    return columnas_limpias
+    return [equivalencias.get(col.lower().strip(), col) for col in columnas]
 
-# --- Función para detectar tipo de estado financiero ---
-def detectar_tipo_estado(df):
-    # Revisar columnas (horizontal)
-    cols = [str(c).lower() for c in df.columns if c is not None]
-    # Revisar filas (vertical)
-    filas = [str(f).lower() for f in df.iloc[:,0] if f is not None]
+def determinar_tipo_estado(df):
+    cols = [c.lower() for c in df.columns]
+    rows = [str(r).lower() for r in df.iloc[:, 0]]
 
-    claves_situacion = {"activo total", "pasivo total", "patrimonio"}
-    claves_resultados = {"ingresos", "ventas", "gastos", "costos"}
-    claves_flujo = {"flujo de efectivo", "actividades de operación", "actividades de inversión", "actividades de financiamiento"}
+    # Intento detectar estado de resultados
+    if "ingresos" in cols or "gastos" in cols or "utilidad neta" in cols or "utilidad" in cols:
+        return "Estado de Resultados"
+    if "activo total" in cols or "pasivo total" in cols or "patrimonio" in cols:
+        return "Estado de Situación Financiera"
+    if "flujo neto de efectivo" in cols or "flujo de efectivo" in cols:
+        return "Estado de Flujo de Efectivo"
 
-    # Detectar en columnas
-    if any(clave in cols for clave in claves_situacion):
-        return "Situación Financiera", "horizontal"
-    if any(clave in cols for clave in claves_resultados):
-        return "Estado de Resultados", "horizontal"
-    if any(clave in cols for clave in claves_flujo):
-        return "Flujo de Efectivo", "horizontal"
+    # Verifico filas si la info está vertical
+    if any("ingresos" in r for r in rows) or any("gastos" in r for r in rows):
+        return "Estado de Resultados"
+    if any("activo total" in r for r in rows) or any("pasivo total" in r for r in rows) or any("patrimonio" in r for r in rows):
+        return "Estado de Situación Financiera"
+    if any("flujo neto de efectivo" in r for r in rows) or any("flujo de efectivo" in r for r in rows):
+        return "Estado de Flujo de Efectivo"
 
-    # Detectar en filas (primera columna)
-    if any(clave in filas for clave in claves_situacion):
-        return "Situación Financiera", "vertical"
-    if any(clave in filas for clave in claves_resultados):
-        return "Estado de Resultados", "vertical"
-    if any(clave in filas for clave in claves_flujo):
-        return "Flujo de Efectivo", "vertical"
+    return None
 
-    return None, None
-
-# --- Función para transformar vertical a horizontal ---
-def vertical_a_horizontal(df):
-    df_clean = df.dropna(how="all").reset_index(drop=True)
-    df_clean = df_clean.rename(columns={df_clean.columns[0]: "Indicador"})
-    df_clean = df_clean.set_index("Indicador").T.reset_index(drop=True)
-    # Reemplazamos nombres si hay
-    df_clean.columns.name = None
-    return df_clean
-
-# --- Función para analizar y mostrar ratios e interpretaciones ---
-def analizar_estado(df, tipo):
-
-    st.subheader(f"📄 Datos procesados del {tipo}:")
-    st.dataframe(df)
-
-    if tipo == "Situación Financiera" or tipo == "Estado de Resultados":
-        # Intentamos estandarizar columnas
-        df.columns = estandarizar_columnas(df.columns)
-
-    # Cálculos para situación financiera y resultados
-    if tipo == "Estado de Resultados":
-        # Asumimos columnas: Ingresos, Gastos
-        if all(x in df.columns for x in ["Ingresos", "Gastos"]):
-            df["Margen de utilidad"] = (df["Ingresos"] - df["Gastos"]) / df["Ingresos"]
-            st.subheader("📈 Margen de utilidad:")
-            st.write(df["Margen de utilidad"])
-
-            # Gráfico
-            fig, ax = plt.subplots()
-            df["Margen de utilidad"].plot(kind="bar", ax=ax, color="#1e90ff")
-            ax.set_ylabel("Margen")
-            ax.set_xlabel("Periodo")
-            st.pyplot(fig)
-
-            # Interpretación
-            st.subheader("🧠 Interpretación automática:")
-            for i, row in df.iterrows():
-                margen = row["Margen de utilidad"]
-                if margen > 0.2:
-                    st.write(f"✅ Margen de utilidad del {margen:.2%}: Excelente rentabilidad.")
-                elif margen > 0.1:
-                    st.write(f"🟡 Margen de utilidad del {margen:.2%}: Rentabilidad aceptable.")
-                else:
-                    st.write(f"🔴 Margen de utilidad del {margen:.2%}: Rentabilidad baja o crítica.")
-                st.markdown("---")
-        else:
-            st.warning("No se encontraron las columnas necesarias para calcular el margen de utilidad (Ingresos y Gastos).")
-
-    elif tipo == "Situación Financiera":
-        # Asumimos columnas: Activo Total, Pasivo Total, Patrimonio
-        if all(x in df.columns for x in ["Activo Total", "Pasivo Total", "Patrimonio"]):
-            df["Razón de endeudamiento"] = df["Pasivo Total"] / df["Activo Total"]
-            st.subheader("📈 Razón de endeudamiento:")
-            st.write(df["Razón de endeudamiento"])
-
-            # Gráfico
-            fig, ax = plt.subplots()
-            df["Razón de endeudamiento"].plot(kind="bar", ax=ax, color="#1e90ff")
-            ax.set_ylabel("Razón")
-            ax.set_xlabel("Periodo")
-            st.pyplot(fig)
-
-            # Interpretación
-            st.subheader("🧠 Interpretación automática:")
-            for i, row in df.iterrows():
-                deuda = row["Razón de endeudamiento"]
-                if deuda < 0.4:
-                    st.write(f"✅ Razón de endeudamiento del {deuda:.2%}: Bajo riesgo financiero.")
-                elif deuda < 0.7:
-                    st.write(f"🟡 Razón de endeudamiento del {deuda:.2%}: Nivel manejable.")
-                else:
-                    st.write(f"🔴 Razón de endeudamiento del {deuda:.2%}: Riesgo alto de deuda.")
-                st.markdown("---")
-        else:
-            st.warning("No se encontraron las columnas necesarias para calcular razón de endeudamiento (Activo Total, Pasivo Total, Patrimonio).")
-
-    elif tipo == "Flujo de Efectivo":
-        # Aquí puedes poner análisis específicos para flujo de efectivo
-        st.write("📊 Datos del Flujo de Efectivo (sin análisis específico aún):")
-        st.dataframe(df)
+def interpretar_margen(margen):
+    if pd.isnull(margen):
+        return "Datos insuficientes para interpretar margen."
+    if margen > 0.2:
+        return f"✅ Margen de utilidad del {margen:.2%}: Excelente rentabilidad."
+    elif margen > 0.1:
+        return f"🟡 Margen de utilidad del {margen:.2%}: Rentabilidad aceptable."
     else:
-        st.warning("No se pudo determinar el análisis para este tipo de estado financiero.")
+        return f"🔴 Margen de utilidad del {margen:.2%}: Rentabilidad baja o crítica."
 
-# --- App principal ---
+def interpretar_roa(roa):
+    if pd.isnull(roa):
+        return "Datos insuficientes para interpretar ROA."
+    if roa > 0.15:
+        return f"✅ ROA del {roa:.2%}: Alta eficiencia del uso de activos."
+    elif roa > 0.05:
+        return f"🟡 ROA del {roa:.2%}: Eficiencia moderada."
+    else:
+        return f"🔴 ROA del {roa:.2%}: Baja eficiencia en activos."
+
+def interpretar_roe(roe):
+    if pd.isnull(roe):
+        return "Datos insuficientes para interpretar ROE."
+    if roe > 0.15:
+        return f"✅ ROE del {roe:.2%}: Buen retorno al accionista."
+    elif roe > 0.05:
+        return f"🟡 ROE del {roe:.2%}: Retorno moderado."
+    else:
+        return f"🔴 ROE del {roe:.2%}: Bajo retorno, debe revisarse."
+
+def interpretar_deuda(deuda):
+    if pd.isnull(deuda):
+        return "Datos insuficientes para interpretar razón de endeudamiento."
+    if deuda < 0.4:
+        return f"✅ Razón de endeudamiento del {deuda:.2%}: Bajo riesgo financiero."
+    elif deuda < 0.7:
+        return f"🟡 Razón de endeudamiento del {deuda:.2%}: Nivel manejable."
+    else:
+        return f"🔴 Razón de endeudamiento del {deuda:.2%}: Riesgo alto de deuda."
+
+# --- Encabezado ---
 st.markdown("<div class='main'>", unsafe_allow_html=True)
 st.image("https://raw.githubusercontent.com/1193-ai/analizador-financiero-streamlit/main/logo-temporal.png", width=100)
 st.markdown("<h1>📊 Analiza tu estado</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitulo'>Por Anny & Luis — Analiza estados financieros fácilmente.</p>", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("📁 Sube tu archivo Excel (.xlsx) con varios estados financieros", type="xlsx")
+# --- Subida de archivo ---
+uploaded_file = st.file_uploader("📁 Sube tu archivo Excel (.xlsx) con hojas múltiples", type="xlsx")
 
 if uploaded_file:
     xls = pd.ExcelFile(uploaded_file)
-    st.write(f"Este archivo tiene {len(xls.sheet_names)} hojas: {xls.sheet_names}")
+    st.write(f"🗂️ Hojas detectadas: {xls.sheet_names}")
 
     for hoja in xls.sheet_names:
-        st.markdown(f"---\n### Hoja: {hoja}")
-        df = xls.parse(hoja)
+        st.markdown(f"## 📄 Hoja: {hoja}")
+        df = pd.read_excel(xls, hoja)
 
-        # Detectar formato y tipo
-        tipo, formato = detectar_tipo_estado(df)
+        # Detectar si está vertical (filas) o horizontal (columnas)
+        tipo = determinar_tipo_estado(df)
+
         if tipo is None:
-            st.warning(f"⚠️ No se pudo determinar el tipo de estado financiero para la hoja '{hoja}'.")
+            st.warning("⚠️ No se pudo determinar el tipo de estado financiero para esta hoja.")
             continue
 
-        if formato == "vertical":
-            df = vertical_a_horizontal(df)
+        st.write(f"**Tipo detectado:** {tipo}")
 
-        analizar_estado(df, tipo)
+        # Si está vertical (columnas genéricas, datos en filas), trasponer para estandarizar
+        # Verificamos si en columnas no están las palabras clave pero sí en filas
+        columnas_lower = [c.lower() for c in df.columns]
+        filas_lower = [str(r).lower() for r in df.iloc[:, 0]]
+
+        if tipo == "Estado de Resultados" and not ("ingresos" in columnas_lower or "gastos" in columnas_lower):
+            df = df.T
+            df.columns = df.iloc[0]
+            df = df.drop(df.index[0])
+            df = df.reset_index(drop=True)
+            df.columns = estandarizar_columnas(df.columns)
+        elif tipo == "Estado de Situación Financiera" and not ("activo total" in columnas_lower or "pasivo total" in columnas_lower):
+            df = df.T
+            df.columns = df.iloc[0]
+            df = df.drop(df.index[0])
+            df = df.reset_index(drop=True)
+            df.columns = estandarizar_columnas(df.columns)
+        elif tipo == "Estado de Flujo de Efectivo" and not ("flujo neto de efectivo" in columnas_lower):
+            df = df.T
+            df.columns = df.iloc[0]
+            df = df.drop(df.index[0])
+            df = df.reset_index(drop=True)
+            df.columns = estandarizar_columnas(df.columns)
+        else:
+            # Ya están en formato horizontal con columnas bien nombradas
+            df.columns = estandarizar_columnas(df.columns)
+
+        st.subheader("📄 Datos cargados:")
+        st.dataframe(df)
+
+        if tipo == "Estado de Resultados":
+            # Calcular ratios
+            try:
+                df["Margen de utilidad"] = (pd.to_numeric(df["Ingresos"]) - pd.to_numeric(df["Gastos"])) / pd.to_numeric(df["Ingresos"])
+                df["ROA"] = (pd.to_numeric(df["Ingresos"]) - pd.to_numeric(df["Gastos"])) / pd.to_numeric(df["Activo Total"])
+                df["ROE"] = (pd.to_numeric(df["Ingresos"]) - pd.to_numeric(df["Gastos"])) / pd.to_numeric(df["Patrimonio"])
+                df["Razón de endeudamiento"] = pd.to_numeric(df["Pasivo Total"]) / pd.to_numeric(df["Activo Total"])
+            except Exception as e:
+                st.error(f"Error calculando ratios: {e}")
+                continue
+
+            st.subheader("📈 Ratios financieros:")
+            st.write(df[["Margen de utilidad", "ROA", "ROE", "Razón de endeudamiento"]])
+
+            st.subheader("🧠 Interpretación automática:")
+            for i, row in df.iterrows():
+                margen = row.get("Margen de utilidad", None)
+                roa = row.get("ROA", None)
+                roe = row.get("ROE", None)
+                deuda = row.get("Razón de endeudamiento", None)
+
+                st.markdown(f"### 📅 Periodo {i + 1}")
+                st.write(interpretar_margen(margen))
+                st.write(interpretar_roa(roa))
+                st.write(interpretar_roe(roe))
+                st.write(interpretar_deuda(deuda))
+                st.markdown("---")
+
+            # Gráfica
+            st.subheader("📊 Gráfica Margen de utilidad:")
+            plt.figure(figsize=(8, 4))
+            plt.plot(df.index, df["Margen de utilidad"], marker='o')
+            plt.title("Margen de utilidad por periodo")
+            plt.xlabel("Periodo")
+            plt.ylabel("Margen de utilidad")
+            plt.grid(True)
+            st.pyplot(plt)
+
+        elif tipo == "Estado de Situación Financiera":
+            st.write("Aquí puedes agregar análisis específicos para este estado.")
+
+        elif tipo == "Estado de Flujo de Efectivo":
+            st.write("Aquí puedes agregar análisis específicos para flujo de efectivo.")
 
 st.markdown("</div>", unsafe_allow_html=True)
+
