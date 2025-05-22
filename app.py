@@ -59,7 +59,15 @@ if uploaded_file:
         roa = row["ROA"]
         roe = row["ROE"]
         deuda = row["Razón de endeudamiento"]
+ # Cálculo de ratios
+    st.subheader("📈 Ratios financieros:")
 
+    df["Margen de utilidad"] = (df["Ingresos"] - df["Gastos"]) / df["Ingresos"]
+    df["ROA"] = (df["Ingresos"] - df["Gastos"]) / df["Activo Total"]
+    df["ROE"] = (df["Ingresos"] - df["Gastos"]) / df["Patrimonio"]
+    df["Razón de endeudamiento"] = df["Pasivo Total"] / df["Activo Total"]
+
+    st.write(df[["Margen de utilidad", "ROA", "ROE", "Razón de endeudamiento"]])
         # Interpretaciones simples
         if margen > 0.2:
             st.write(f"✅ Margen de utilidad del {margen:.2%}: Excelente rentabilidad.")
