@@ -2,8 +2,10 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# --- Configuración de página ---
 st.set_page_config(page_title="Analiza tu estado", page_icon="📊", layout="centered")
 
+# --- Estilo personalizado ---
 st.markdown("""
     <style>
         body {
@@ -24,136 +26,87 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# --- Encabezado ---
 st.markdown("<div class='main'>", unsafe_allow_html=True)
 st.image("https://raw.githubusercontent.com/1193-ai/analizador-financiero-streamlit/main/logo-temporal.png", width=100)
 st.markdown("<h1>📊 Analiza tu estado</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitulo'>Por Anny & Luis — Analiza estados financieros fácilmente.</p>", unsafe_allow_html=True)
 
+# --- Subida de archivo ---
 uploaded_file = st.file_uploader("📁 Sube tu archivo Excel (.xlsx) con todos los estados financieros", type="xlsx")
 
-def detectar_tipo_estado(df):
-    texto_completo = ' '.join([str(c).lower() for c in df.columns]) + ' ' + ' '.join([str(i).lower() for i in df.index])
-
-    if any(keyword in texto_completo for keyword in ["activo", "pasivo", "patrimonio", "situación financiera"]):
-        return "situacion"
-    elif any(keyword in texto_completo for keyword in ["ingresos", "ventas", "utilidad", "ganancia", "resultado neto"]):
-        return "resultados"
-    elif any(keyword in texto_completo for keyword in ["efectivo", "flujo", "actividades operativas", "inversión", "financiación"]):
-        return "flujo"
+def detectar_tipo_hoja(df):
+    conceptos = df['Concepto'].str.lower().tolist()
+    if any("activo" in c for c in conceptos) and any("pasivo" in c for c in conceptos):
+        return "estado_situacion"
+    elif any("ingresos" in c for c in conceptos) and any("gastos" in c for c in conceptos):
+        return "estado_resultados"
+    elif any("efectivo" in c for c in conceptos) and any("operación" in c for c in conceptos):
+        return "flujo_efectivo"
     else:
         return None
 
-def procesar_estado_resultados(df):
-    try:
-        df = df.fillna(0)
-        st.subheader("📈 Ratios financieros del Estado de Resultados")
-        df["Margen de utilidad"] = (df["Ingresos"] - df["Gastos"]) / df["Ingresos"]
-        st.dataframe(df[["Ingresos", "Gastos", "Margen de utilidad"]])
-
-        st.subheader("📊 Gráfico de margen de utilidad")
-        fig, ax = plt.subplots()
-        df["Margen de utilidad"].plot(kind="bar", ax=ax, color="#1e90ff")
-        ax.set_ylabel("Margen")
-        ax.set_xlabel("Periodo")
-        st.pyplot(fig)
-
-        st.subheader("🧠 Interpretaciones")
-        for i, row in df.iterrows():
-            margen = row["Margen de utilidad"]
-            if margen > 0.2:
-                st.write(f"✅ Periodo {i}: Margen excelente ({margen:.2%})")
-            elif margen > 0.1:
-                st.write(f"🟡 Periodo {i}: Margen aceptable ({margen:.2%})")
-            else:
-                st.write(f"🔴 Periodo {i}: Margen bajo ({margen:.2%})")
-        st.markdown("---")
-    except Exception as e:
-        st.error("Error procesando Estado de Resultados: " + str(e))
-
-def procesar_estado_situacion(df):
-    try:
-        df = df.fillna(0)
-        st.subheader("📈 Ratios del Estado de Situación Financiera")
-        df["ROA"] = (df["Ingresos"] - df["Gastos"]) / df["Activo Total"]
-        df["ROE"] = (df["Ingresos"] - df["Gastos"]) / df["Patrimonio"]
-        df["Razón de endeudamiento"] = df["Pasivo Total"] / df["Activo Total"]
-        st.dataframe(df[["ROA", "ROE", "Razón de endeudamiento"]])
-
-        st.subheader("🧠 Interpretaciones")
-        for i, row in df.iterrows():
-            roa = row["ROA"]
-            roe = row["ROE"]
-            deuda = row["Razón de endeudamiento"]
-
-            st.write(f"### 📅 Periodo {i}")
-            if roa > 0.15:
-                st.write(f"✅ ROA alto ({roa:.2%})")
-            elif roa > 0.05:
-                st.write(f"🟡 ROA moderado ({roa:.2%})")
-            else:
-                st.write(f"🔴 ROA bajo ({roa:.2%})")
-
-            if roe > 0.15:
-                st.write(f"✅ ROE fuerte ({roe:.2%})")
-            elif roe > 0.05:
-                st.write(f"🟡 ROE aceptable ({roe:.2%})")
-            else:
-                st.write(f"🔴 ROE bajo ({roe:.2%})")
-
-            if deuda < 0.4:
-                st.write(f"✅ Endeudamiento bajo ({deuda:.2%})")
-            elif deuda < 0.7:
-                st.write(f"🟡 Nivel de deuda razonable ({deuda:.2%})")
-            else:
-                st.write(f"🔴 Endeudamiento alto ({deuda:.2%})")
-        st.markdown("---")
-    except Exception as e:
-        st.error("Error procesando Estado de Situación Financiera: " + str(e))
-
-def procesar_estado_flujo(df):
-    try:
-        df = df.fillna(0)
-        st.subheader("📈 Análisis del Flujo de Efectivo")
-        df["Flujo neto"] = df.sum(axis=1)
-        st.dataframe(df[["Flujo neto"]])
-
-        st.subheader("📊 Gráfico del Flujo de Efectivo")
-        fig, ax = plt.subplots()
-        df["Flujo neto"].plot(kind="line", ax=ax, marker='o', color="#ff6347")
-        ax.set_ylabel("Flujo neto")
-        ax.set_xlabel("Periodo")
-        st.pyplot(fig)
-
-        st.subheader("🧠 Interpretación")
-        for i, row in df.iterrows():
-            flujo = row["Flujo neto"]
-            if flujo > 0:
-                st.write(f"✅ Periodo {i}: Flujo positivo ({flujo})")
-            elif flujo == 0:
-                st.write(f"🟡 Periodo {i}: Flujo neutro ({flujo})")
-            else:
-                st.write(f"🔴 Periodo {i}: Flujo negativo ({flujo})")
-        st.markdown("---")
-    except Exception as e:
-        st.error("Error procesando Flujo de Efectivo: " + str(e))
+def graficar_lineas(df, titulo):
+    df_plot = df.set_index("Concepto").T
+    fig, ax = plt.subplots()
+    df_plot.plot(ax=ax)
+    ax.set_title(titulo)
+    st.pyplot(fig)
 
 if uploaded_file:
-    hojas_excel = pd.read_excel(uploaded_file, sheet_name=None)
-    st.success(f"Archivo cargado con {len(hojas_excel)} hoja(s): {', '.join(hojas_excel.keys())}")
+    xls = pd.ExcelFile(uploaded_file)
+    st.success(f"Archivo cargado con {len(xls.sheet_names)} hoja(s): {', '.join(xls.sheet_names)}")
 
-    for nombre_hoja, df in hojas_excel.items():
-        st.markdown(f"## 📄 Hoja: {nombre_hoja}")
+    for hoja in xls.sheet_names:
+        st.markdown(f"## 🗂️ Hoja: {hoja}")
+        df = xls.parse(hoja)
 
-        if df.shape[0] < df.shape[1]:
-            df = df.transpose()
+        if df.columns[0].lower() != "concepto":
+            df = df.T
+            df.columns = df.iloc[0]
+            df = df[1:]
+            df.reset_index(drop=True, inplace=True)
+            df.insert(0, "Concepto", df.index)
 
-        tipo = detectar_tipo_estado(df)
+        df = df.dropna(how="all")
+        df = df.fillna(0)
+        df.columns = df.columns.map(str)
 
-        if tipo == "situacion":
-            procesar_estado_situacion(df)
-        elif tipo == "resultados":
-            procesar_estado_resultados(df)
-        elif tipo == "flujo":
-            procesar_estado_flujo(df)
+        if "Concepto" not in df.columns:
+            st.warning("⚠️ Esta hoja no tiene una columna llamada 'Concepto'.")
+            continue
+
+        tipo = detectar_tipo_hoja(df)
+
+        if tipo == "estado_resultados":
+            st.success("✅ Detectado: Estado de Resultados")
+            df_numeric = df.set_index("Concepto").T
+            df_numeric = df_numeric.apply(pd.to_numeric, errors='coerce')
+            df_numeric.fillna(0, inplace=True)
+            df_numeric["Margen de utilidad"] = (df_numeric["Ingresos"] - df_numeric["Gastos"]) / df_numeric["Ingresos"]
+
+            st.subheader("📈 Margen de utilidad")
+            st.line_chart(df_numeric[["Margen de utilidad"]])
+
+            st.subheader("📊 Pastel de gastos vs ingresos último año")
+            ultima = df_numeric.iloc[-1]
+            fig, ax = plt.subplots()
+            ax.pie([ultima["Gastos"], ultima["Ingresos"] - ultima["Gastos"]], labels=["Gastos", "Utilidad"], autopct="%1.1f%%")
+            st.pyplot(fig)
+
+        elif tipo == "estado_situacion":
+            st.success("✅ Detectado: Estado de Situación Financiera")
+            df_numeric = df.set_index("Concepto").T
+            df_numeric = df_numeric.apply(pd.to_numeric, errors='coerce')
+            df_numeric.fillna(0, inplace=True)
+            df_numeric["Razón de endeudamiento"] = df_numeric["Pasivo Total"] / df_numeric["Activo Total"]
+
+            st.subheader("📉 Razón de endeudamiento")
+            st.bar_chart(df_numeric[["Razón de endeudamiento"]])
+
+        elif tipo == "flujo_efectivo":
+            st.success("✅ Detectado: Estado de Flujo de Efectivo")
+            graficar_lineas(df, "Flujo de Efectivo por Actividad")
+
         else:
             st.warning("⚠️ No se pudo determinar el tipo de estado financiero para esta hoja.")
