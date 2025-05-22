@@ -36,7 +36,12 @@ st.markdown("<p class='subtitulo'>Por Anny & Luis — Analiza estados financiero
 uploaded_file = st.file_uploader("📁 Sube tu archivo Excel (.xlsx) con todos los estados financieros", type="xlsx")
 
 def detectar_tipo_hoja(df):
-    conceptos = df['Concepto'].str.lower().tolist()
+    if "Concepto" not in df.columns:
+        return None
+    try:
+        conceptos = df["Concepto"].astype(str).str.lower().tolist()
+    except Exception:
+        return None
     if any("activo" in c for c in conceptos) and any("pasivo" in c for c in conceptos):
         return "estado_situacion"
     elif any("ingresos" in c for c in conceptos) and any("gastos" in c for c in conceptos):
@@ -61,7 +66,7 @@ if uploaded_file:
         st.markdown(f"## 🗂️ Hoja: {hoja}")
         df = xls.parse(hoja)
 
-        if df.columns[0].lower() != "concepto":
+        if df.columns[0].strip().lower() != "concepto":
             df = df.T
             df.columns = df.iloc[0]
             df = df[1:]
