@@ -300,13 +300,14 @@ openai.api_key = st.secrets["OPENAI_API_KEY"]
 def preguntar_a_ia(pregunta):
     try:
         response = openai.chat.completions.create(
-            model="gpt-4",
+            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": pregunta}],
             temperature=0.3,
         )
         return response.choices[0].message.content
     except Exception as e:
         return f"Error al consultar a la IA: {e}"
+
 st.markdown("---")
 st.header("💬 Preguntas y respuestas con IA")
 
