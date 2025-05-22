@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-impo
-rt matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+
 
 # --- Configuración de página ---
 st.set_page_config(page_title="Analiza tu estado", page_icon="📊", layout="centered")
