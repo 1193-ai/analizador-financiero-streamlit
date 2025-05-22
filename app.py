@@ -295,13 +295,11 @@ if user_question and uploaded_file:
 
 import openai
 
-# Configurar la clave API (debe estar en tus secretos de Streamlit)
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-# Función para enviar la pregunta a OpenAI y obtener respuesta
 def preguntar_a_ia(pregunta):
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": pregunta}],
             temperature=0.3,
@@ -309,8 +307,6 @@ def preguntar_a_ia(pregunta):
         return response.choices[0].message.content
     except Exception as e:
         return f"Error al consultar a la IA: {e}"
-
-# Después de procesar y mostrar tus estados financieros, agregar esta sección para la interacción
 st.markdown("---")
 st.header("💬 Preguntas y respuestas con IA")
 
