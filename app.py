@@ -316,3 +316,29 @@ if pregunta:
         )
         respuesta_texto = respuesta['choices'][0]['message']['content']
         st.markdown(f"**Respuesta:** {respuesta_texto}")
+import openai
+
+# Configurar la clave API (debe estar en tus secretos de Streamlit)
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+# Función para enviar la pregunta a OpenAI y obtener respuesta
+def preguntar_a_ia(pregunta):
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[{"role": "user", "content": pregunta}],
+            temperature=0.3,
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"Error al consultar a la IA: {e}"
+
+# Después de procesar y mostrar tus estados financieros, agregar esta sección para la interacción
+st.markdown("---")
+st.header("💬 Preguntas y respuestas con IA")
+
+pregunta_usuario = st.text_input("Escribe tu pregunta sobre los estados financieros aquí:")
+
+if st.button("Preguntar a IA") and pregunta_usuario.strip() != "":
+    respuesta_ia = preguntar_a_ia(pregunta_usuario)
+    st.markdown(f"**Respuesta:** {respuesta_ia}")
