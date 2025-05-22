@@ -292,30 +292,7 @@ if user_question and uploaded_file:
             temperature=0.3
         )
         st.success(respuesta["choices"][0]["message"]["content"])
-import streamlit as st
-import openai
 
-# Configura la clave API
-openai.api_key = st.secrets["OPENAI_API_KEY"]
-
-st.header("💬 Pregunta sobre tus estados financieros")
-
-# Entrada de pregunta del usuario
-pregunta = st.text_input("Escribe tu pregunta aquí:")
-
-if pregunta:
-    with st.spinner("Consultando IA..."):
-        respuesta = openai.ChatCompletion.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "Eres un asistente experto en análisis financiero."},
-                {"role": "user", "content": pregunta}
-            ],
-            max_tokens=200,
-            temperature=0.7,
-        )
-        respuesta_texto = respuesta['choices'][0]['message']['content']
-        st.markdown(f"**Respuesta:** {respuesta_texto}")
 import openai
 
 # Configurar la clave API (debe estar en tus secretos de Streamlit)
